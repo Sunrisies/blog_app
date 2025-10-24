@@ -64,6 +64,18 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.navigation:navigation-compose:${nav_version}")
+    implementation("com.github.jenly1314.UltraSwipeRefresh:refresh:1.4.2")
+    implementation("com.github.jenly1314.UltraSwipeRefresh:refresh-indicator-classic:1.4.2")
+    // 网络请求
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
+
+    // 图片加载
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // 下拉刷新
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.27.0")
 
 
 
