@@ -76,8 +76,10 @@ dependencies {
 
     // 下拉刷新
     implementation("com.google.accompanist:accompanist-swiperefresh:0.27.0")
-
-
+    // Markdown 渲染
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:image-coil:4.6.2")
+    implementation("io.noties.markwon:html:4.6.2")
 
 
     testImplementation(libs.junit)

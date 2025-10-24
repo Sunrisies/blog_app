@@ -2,6 +2,7 @@ package com.sunrise.blog
 
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.king.ultraswiperefresh.UltraSwipeRefresh
 import com.king.ultraswiperefresh.indicator.classic.ClassicRefreshFooter
@@ -32,7 +34,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
     val viewModel: HomeViewModel = viewModel()
     val state = viewModel.state
 
@@ -162,7 +164,11 @@ fun HomeScreen() {
                 }
 
                 items(state.posts) { post ->
-                    PostItem(post = post)
+                    PostItem(post = post,
+                        onItemClick = {
+                            // 点击跳转到详情页
+                            navController.navigate("post_detail/${post.uuid}")
+                        })
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = Color(0xFFF2F3F6)
@@ -230,11 +236,13 @@ fun HomeScreen() {
 }
 
 @Composable
-fun PostItem(post: com.sunrise.blog.model.Post) {
+fun PostItem(post: com.sunrise.blog.model.Post, onItemClick: () -> Unit = {} // 添加点击事件回调
+ ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onItemClick() }, // 添加点击事件,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White

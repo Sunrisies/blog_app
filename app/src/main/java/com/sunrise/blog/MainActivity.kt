@@ -27,6 +27,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sunrise.blog.viewmodel.HomeViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,13 +116,20 @@ fun BottomNavigationBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
+    // 在详情页面隐藏底部导航栏
+    if (currentRoute?.startsWith("post_detail") == true) {
+        return
+    }
     NavigationBar {
         items.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = {
                     navController.navigate(item.route) {
+                        // 清除返回栈直到首页，避免堆叠过多页面
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -149,7 +159,7 @@ fun NavigationHost(
         modifier = modifier
     ) {
         composable("home") {
-            HomeScreen()
+            HomeScreen(navController = navController)
 //            ClassicRefreshAutoLoadSample()
         }
 
@@ -161,6 +171,17 @@ fun NavigationHost(
         }
         composable("profile") {
             ProfileScreen()
+        }
+
+        composable(
+            "post_detail/{postUuid}",
+            arguments = listOf(navArgument("postUuid") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postUuid = backStackEntry.arguments?.getString("postUuid") ?: "01111111"
+            PostDetailScreen(
+                postUuid = postUuid,
+                navController = navController
+            )
         }
     }
 }
