@@ -22,6 +22,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.sunrise.blog.viewmodel.PostDetailViewModel
 import io.noties.markwon.Markwon
+import io.noties.markwon.core.CorePlugin
 import io.noties.markwon.image.coil.CoilImagesPlugin
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +47,7 @@ fun PostDetailScreen(
     val markwon = remember {
         Markwon.builder(context)
             .usePlugin(CoilImagesPlugin.create(context))
+            .usePlugin(CorePlugin.create()) // 使用 CorePlugin
             .build()
     }
 
