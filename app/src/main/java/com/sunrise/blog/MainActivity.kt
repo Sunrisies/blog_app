@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -73,6 +74,12 @@ fun MainApp() {
             title = "首页",
             icon = Icons.Default.Home,
             contentDescription = "首页"
+        ),
+        BottomNavItem(
+            route = "tools",
+            title = "工具",
+            icon =Icons.Default.Build,
+            contentDescription = "工具"
         ),
         BottomNavItem(
             route = "search",
@@ -162,7 +169,33 @@ fun NavigationHost(
             HomeScreen(navController = navController)
 //            ClassicRefreshAutoLoadSample()
         }
-
+        composable("tools"){
+            ToolsScreen(navController = navController)
+        }
+        composable("json_formatter") {
+            JsonFormatterScreen(navController = navController)
+        }
+        composable("base64_tool") {
+            Base64ToolScreen(navController = navController)
+        }
+        composable("timestamp_tool") {
+            TimestampToolScreen(navController = navController)
+        }
+//        composable("color_picker") {
+//            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
+//        }
+//        composable("qr_generator") {
+//            ToolDetailScreen(navController, "二维码生成", "二维码生成功能")
+//        }
+//        composable("markdown_editor") {
+//            ToolDetailScreen(navController, "Markdown 编辑器", "Markdown 编辑器功能")
+//        }
+//        composable("unit_converter") {
+//            ToolDetailScreen(navController, "单位换算", "单位换算功能")
+//        }
+//        composable("regex_tester") {
+//            ToolDetailScreen(navController, "正则表达式测试", "正则表达式测试功能")
+//        }
         composable("search") {
             SearchScreen()
         }
