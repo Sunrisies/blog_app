@@ -1,3 +1,7 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.TimeZone
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -51,6 +55,20 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    applicationVariants.all{
+        val variant = this
+        variant.outputs
+            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
+            .forEach { output ->
+                val dateFormat = SimpleDateFormat("yyyyMMddHHmm")
+                dateFormat.timeZone = TimeZone.getTimeZone("Asia/Shanghai")
+                val date=dateFormat.format(Date())
+                val outputFileName = "blog-${variant.versionName}-${date}.apk"
+                output.outputFileName = outputFileName
+            }
+
+
     }
 }
 

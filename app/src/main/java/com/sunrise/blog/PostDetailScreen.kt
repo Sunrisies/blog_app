@@ -1,6 +1,7 @@
 package com.sunrise.blog
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,7 +26,6 @@ import io.noties.markwon.Markwon
 import io.noties.markwon.core.CorePlugin
 import io.noties.markwon.image.coil.CoilImagesPlugin
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
     postUuid: String,
@@ -43,45 +43,33 @@ fun PostDetailScreen(
     // 获取 Context
     val context = LocalContext.current
 
-    // 创建 Markwon 实例 - 修复版本
+    // 创建 Markwon 实例
     val markwon = remember {
         Markwon.builder(context)
             .usePlugin(CoilImagesPlugin.create(context))
-            .usePlugin(CorePlugin.create()) // 使用 CorePlugin
+            .usePlugin(CorePlugin.create())
             .build()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = state.postDetail?.title ?: "文章详情",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        }
-    ) { innerPadding ->
+    // 使用 Column 替代 Scaffold
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // 自定义顶部栏
+        PostDetailTopBar(
+            navController = navController,
+            title = state.postDetail?.title ?: "文章详情"
+        )
+
+        // 内容区域
         when {
             state.isLoading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -98,7 +86,7 @@ fun PostDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -121,8 +109,8 @@ fun PostDetailScreen(
 
                 Column(
                     modifier = Modifier
-                        .padding(innerPadding)
                         .fillMaxSize()
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
                     // 文章封面
@@ -266,12 +254,62 @@ fun PostDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("暂无数据")
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PostDetailTopBar(
+    navController: NavController,
+    title: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        // 顶部栏内容
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 左侧：返回按钮和标题
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                IconButton(
+                    onClick = { navController.popBackStack() }
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                }
+
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 8.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // 底部装饰线
+        Divider(
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+            thickness = 1.dp
+        )
     }
 }
