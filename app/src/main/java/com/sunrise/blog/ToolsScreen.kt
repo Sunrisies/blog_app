@@ -28,7 +28,7 @@ data class ToolItem(
     val id: String,
     val name: String,
     val description: String,
-    val iconResId: Int, // 可以使用本地图标资源
+    val iconResId: Int , // 可以使用本地图标资源
     val route: String, // 导航路由
     val color: Long // 主题色
 )
@@ -42,6 +42,14 @@ fun ToolsScreen(navController: NavController) {
                 description = "美化和格式化 JSON 数据",
                 iconResId = android.R.drawable.ic_menu_edit, // 使用系统图标示例
                 route = "json_formatter",
+                color = 0xFF4CAF50
+            ),
+            ToolItem(
+                id = "password_manager",
+                name = "密码管理器",
+                description = "安全存储和管理您的密码",
+                iconResId =android.R.drawable.ic_lock_lock, // 使用锁图标
+                route = "password_manager",
                 color = 0xFF4CAF50
             ),
             ToolItem(
@@ -106,7 +114,7 @@ fun ToolsScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.White)
     ) {
         // 标题栏
         Text(
@@ -114,7 +122,7 @@ fun ToolsScreen(navController: NavController) {
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(24.dp, 24.dp, 24.dp, 16.dp)
+            modifier = Modifier.padding(24.dp, 14.dp, 24.dp, 14.dp)
         )
 
         Text(
@@ -166,36 +174,36 @@ fun ToolItemCard(tool: ToolItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .padding(8.dp), // 增加外边距，使卡片之间有间隔
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            containerColor = MaterialTheme.colorScheme.surfaceVariant, // 使用较深的背景色
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // 使用较浅的内容色
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // 增加阴影效果
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(16.dp), // 增加内边距
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp) // 调整间距
         ) {
             // 图标容器
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(48.dp) // 调整图标大小
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(tool.color)),
+                    .background(Color(tool.color)), // 使用工具的颜色
                 contentAlignment = Alignment.Center
             ) {
-                // 这里可以使用实际的图标
-                // 暂时使用文字作为图标占位
+                // 使用图标或简化的文本
                 Text(
                     text = tool.name.take(2),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall // 调整字体大小
                 )
             }
 
@@ -206,14 +214,14 @@ fun ToolItemCard(tool: ToolItem, onClick: () -> Unit) {
             ) {
                 Text(
                     text = tool.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall, // 调整字体大小
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = tool.description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall, // 调整字体大小
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -225,12 +233,11 @@ fun ToolItemCard(tool: ToolItem, onClick: () -> Unit) {
                 imageVector = Icons.Default.ArrowCircleRight,
                 contentDescription = "进入工具",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp) // 调整箭头大小
             )
         }
     }
 }
-
 
 // 创建不同的工具页面
 @Composable

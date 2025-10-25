@@ -127,6 +127,9 @@ fun BottomNavigationBar(
     if (currentRoute?.startsWith("post_detail") == true) {
         return
     }
+    if(currentRoute?.startsWith("password_manager") == true){
+        return
+    }
     NavigationBar {
         items.forEach { item ->
             NavigationBarItem(
@@ -180,6 +183,9 @@ fun NavigationHost(
         }
         composable("timestamp_tool") {
             TimestampToolScreen(navController = navController)
+        }
+        composable("password_manager") {
+            PasswordManagerScreen(navController = navController)
         }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")

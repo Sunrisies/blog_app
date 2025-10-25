@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -54,6 +55,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.room.common.jvm)
     val nav_version = "2.9.5"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -81,7 +83,16 @@ dependencies {
     implementation("io.noties.markwon:image-coil:4.6.2")
     implementation("io.noties.markwon:html:4.6.2")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
+    implementation("com.google.code.gson:gson:2.10.1")
 
+
+    // Room 数据库
+    implementation("androidx.room:room-runtime:2.6.0")
+    implementation("androidx.room:room-ktx:2.6.0")
+    ksp("androidx.room:room-compiler:2.6.0")
+
+    // 加密存储（可选，但推荐用于密码管理）
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
