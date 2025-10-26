@@ -187,6 +187,9 @@ fun NavigationHost(
         composable("password_manager") {
             PasswordManagerScreen(navController = navController)
         }
+        composable("stepCounter") {
+            StepCounterScreen(navController = navController)
+        }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
 //        }

@@ -1,5 +1,6 @@
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 plugins {
@@ -9,6 +10,7 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+
 android {
     namespace = "com.sunrise.blog"
     compileSdk = 36
@@ -17,8 +19,10 @@ android {
         applicationId = "com.sunrise.blog"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+//        versionCode = 1
+//        versionName = "1.0"
+        versionCode = generateVersionCode()
+        versionName = generateVersionName()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -61,17 +65,26 @@ android {
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                val dateFormat = SimpleDateFormat("yyyyMMddHHmm")
-                dateFormat.timeZone = TimeZone.getTimeZone("Asia/Shanghai")
-                val date=dateFormat.format(Date())
-                val outputFileName = "blog-${variant.versionName}-${date}.apk"
+                val outputFileName = "blog-${variant.versionName}.apk"
                 output.outputFileName = outputFileName
             }
 
 
     }
 }
+// 生成版本代码（基于时间戳）
+fun generateVersionCode(): Int {
+    // 使用当前时间的分钟数作为版本代码（确保每次构建都不同）
+    val minutes = System.currentTimeMillis() / (1000 * 60)
+    return minutes.toInt()
+}
 
+// 生成版本名称（包含时间和版本信息）
+fun generateVersionName(): String {
+    val baseVersion = "1.1" // 基础版本号
+    val date = SimpleDateFormat("yyyyMMdd-HHmm", Locale.getDefault()).format(Date())
+    return "$baseVersion-$date"
+}
 dependencies {
     implementation(libs.androidx.room.common.jvm)
     val nav_version = "2.9.5"

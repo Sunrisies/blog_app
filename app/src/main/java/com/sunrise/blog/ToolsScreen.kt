@@ -53,6 +53,14 @@ fun ToolsScreen(navController: NavController) {
                 color = 0xFF4CAF50
             ),
             ToolItem(
+              id = "stepCounter",
+                name = "",
+                description = "",
+                iconResId = android.R.drawable.ic_menu_rotate,
+                route = "stepCounter",
+                color = 0xFF4CAF50
+            ),
+            ToolItem(
                 id = "base64",
                 name = "Base64 编解码",
                 description = "Base64 编码和解码工具",
