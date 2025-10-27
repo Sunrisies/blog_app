@@ -1,11 +1,9 @@
 // StepCounterScreen.kt
 package com.sunrise.blog
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,12 +17,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.sunrise.blog.model.StepCounterData
+import com.sunrise.blog.model.StepCounterSettings
 import com.sunrise.blog.viewmodel.StepCounterViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,12 +30,14 @@ import com.sunrise.blog.viewmodel.StepCounterViewModel
 fun StepCounterScreen(navController: NavController) {
     val viewModel: StepCounterViewModel = viewModel()
     val stepData by viewModel.stepData.collectAsState()
+    val settings by viewModel.settings.collectAsState()
+
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
     ) {
         // 顶部栏
         TopAppBar(
@@ -53,100 +53,236 @@ fun StepCounterScreen(navController: NavController) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                 }
             },
+            actions = {
+                IconButton(onClick = { showSettingsDialog = true }) {
+                    Icon(Icons.Default.Settings, contentDescription = "设置")
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // 步频显示和动画
+            PaceDisplay(
+                currentPace = stepData.currentPace,
+                targetPace = stepData.targetPace,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.4f)
+            )
 
-        // 步数显示区域
-        StepDisplay(stepData = stepData)
+            // 步数显示
+            StepDisplay(
+                stepData = stepData,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.4f)
+            )
 
-        Spacer(modifier = Modifier.height(48.dp))
+            // 统计数据
+            RunningStats(stepData = stepData, modifier = Modifier.fillMaxWidth())
 
-        // 统计数据
-        RunningStats(stepData = stepData)
+            // 控制按钮
+            ControlButtons(
+                isRunning = stepData.isRunning,
+                onStart = { viewModel.startRunning() },
+                onStop = { viewModel.stopRunning() },
+                onReset = { viewModel.reset() },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // 控制按钮
-        ControlButtons(
-            isRunning = stepData.isRunning,
-            onStart = { viewModel.startRunning() },
-            onStop = { viewModel.stopRunning() },
-            onReset = { viewModel.reset() }
+    // 设置对话框
+    if (showSettingsDialog) {
+        StepCounterSettingsDialog(
+            stepData = stepData,
+            settings = settings,
+            viewModel = viewModel,
+            onDismiss = { showSettingsDialog = false }
         )
     }
 }
 
 @Composable
-fun StepDisplay(stepData: StepCounterData) {
-    // 简单的脉冲动画
-    val scale = remember { Animatable(1f) }
+fun PaceDisplay(
+    currentPace: Int,
+    targetPace: Int,
+    modifier: Modifier = Modifier
+) {
+    // 根据步频匹配情况决定动画效果
+    val isOnPace = currentPace in (targetPace - 5)..(targetPace + 5) && currentPace > 0
+    val isTooFast = currentPace > targetPace + 5
+    val isTooSlow = currentPace < targetPace - 5 && currentPace > 0
 
-    LaunchedEffect(stepData.steps) {
-        if (stepData.isRunning) {
-            scale.animateTo(
+    // 脉冲动画
+    val pulseScale = remember { Animatable(1f) }
+
+    LaunchedEffect(isOnPace) {
+        if (isOnPace) {
+            pulseScale.animateTo(
                 targetValue = 1.1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 1000),
+                    animation = tween(durationMillis = 500),
                     repeatMode = RepeatMode.Reverse
                 )
             )
         } else {
-            scale.animateTo(1f)
+            pulseScale.animateTo(1f)
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 步数圆圈
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                .scale(scale.value),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = stepData.steps.toString(),
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 48.sp
-                )
-                Text(
-                    "步数",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    Card(
+        modifier = modifier
+            .padding(8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isOnPace -> Color(0xFF4CAF50).copy(alpha = 0.2f) // 绿色
+                isTooFast -> Color(0xFFF44336).copy(alpha = 0.2f) // 红色
+                isTooSlow -> Color(0xFFFF9800).copy(alpha = 0.2f) // 橙色
+                else -> MaterialTheme.colorScheme.surfaceVariant
             }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "当前步频",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "$currentPace",
+                style = MaterialTheme.typography.displayLarge,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    isOnPace -> Color(0xFF4CAF50)
+                    isTooFast -> Color(0xFFF44336)
+                    isTooSlow -> Color(0xFFFF9800)
+                    else -> MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier.scale(pulseScale.value)
+            )
+
+            Text(
+                "步/分钟",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "目标: $targetPace 步/分钟",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // 步频提示
+            Text(
+                text = when {
+                    isOnPace -> "✓ 完美步频！"
+                    isTooFast -> "↓ 稍微慢一点"
+                    isTooSlow -> "↑ 加快步频"
+                    else -> "开始跑步以检测步频"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    isOnPace -> Color(0xFF4CAF50)
+                    isTooFast -> Color(0xFFF44336)
+                    isTooSlow -> Color(0xFFFF9800)
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // 状态指示
-        Text(
-            text = if (stepData.isRunning) "跑步中..." else "准备开始",
-            style = MaterialTheme.typography.titleMedium,
-            color = if (stepData.isRunning) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
 @Composable
-fun RunningStats(stepData: StepCounterData) {
+fun StepDisplay(stepData: StepCounterData, modifier: Modifier = Modifier) {
+    val scale = remember { Animatable(1f) }
+
+    LaunchedEffect(stepData.steps) {
+        if (stepData.isRunning && stepData.steps > 0) {
+            scale.animateTo(1.05f, tween(durationMillis = 100))
+            scale.animateTo(1f, tween(durationMillis = 200))
+        }
+    }
+
+    Card(
+        modifier = modifier.padding(8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    .scale(scale.value),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = stepData.steps.toString(),
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 32.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "步数",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = if (stepData.isRunning) "跑步中..." else "准备开始",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (stepData.isRunning) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun RunningStats(stepData: StepCounterData, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        // 距离
         StatCard(
             value = String.format("%.2f", stepData.distance),
             unit = "公里",
@@ -154,12 +290,18 @@ fun RunningStats(stepData: StepCounterData) {
             icon = Icons.Default.DirectionsWalk
         )
 
-        // 卡路里
         StatCard(
             value = String.format("%.0f", stepData.calories),
             unit = "卡路里",
             label = "消耗",
             icon = Icons.Default.LocalFireDepartment
+        )
+
+        StatCard(
+            value = stepData.targetPace.toString(),
+            unit = "步/分钟",
+            label = "目标步频",
+            icon = Icons.Default.Speed
         )
     }
 }
@@ -168,36 +310,37 @@ fun RunningStats(stepData: StepCounterData) {
 fun StatCard(value: String, unit: String, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Card(
         modifier = Modifier
-            .width(140.dp)
-            .height(120.dp),
+            .width(110.dp)
+            .height(100.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = unit,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = label,
@@ -213,34 +356,33 @@ fun ControlButtons(
     isRunning: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         if (!isRunning) {
-            // 开始按钮
             Button(
                 onClick = onStart,
                 modifier = Modifier
                     .width(120.dp)
-                    .height(56.dp),
+                    .height(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = "开始")
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("开始跑步")
+                Text("开始")
             }
         } else {
-            // 停止按钮
             Button(
                 onClick = onStop,
                 modifier = Modifier
                     .width(120.dp)
-                    .height(56.dp),
+                    .height(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 )
@@ -251,12 +393,11 @@ fun ControlButtons(
             }
         }
 
-        // 重置按钮
         Button(
             onClick = onReset,
             modifier = Modifier
                 .width(120.dp)
-                .height(56.dp),
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -268,36 +409,154 @@ fun ControlButtons(
     }
 }
 
-// 简单的设置对话框
+// 在 StepCounterSettingsDialog 中添加音量控制
+// 在 StepCounterSettingsDialog 中添加音量控制
 @Composable
-fun SimpleSettingsDialog(
-    onDismiss: () -> Unit,
-    onSave: (Int) -> Unit
+fun StepCounterSettingsDialog(
+    stepData: StepCounterData,
+    settings: StepCounterSettings,
+    viewModel: StepCounterViewModel,
+    onDismiss: () -> Unit
 ) {
-    var stepGoal by remember { mutableStateOf("10000") }
+    var targetPace by remember { mutableStateOf(stepData.targetPace.toString()) }
+    var enableSound by remember { mutableStateOf(settings.enableSound) }
+    var enableVibration by remember { mutableStateOf(settings.enableVibration) }
+    var enableBluetooth by remember { mutableStateOf(settings.enableBluetooth) }
+    var soundVolume by remember { mutableStateOf(50) } // 音量 0-100
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("设置步数目标") },
+        title = { Text("计步器设置") },
         text = {
-            Column {
-                OutlinedTextField(
-                    value = stepGoal,
-                    onValueChange = { stepGoal = it },
-                    label = { Text("每日目标步数") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // 目标步频设置
+                Column {
+                    Text("目标步频", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = targetPace,
+                        onValueChange = {
+                            if (it.all { char -> char.isDigit() } && it.length <= 3) {
+                                targetPace = it
+                            }
+                        },
+                        label = { Text("步/分钟") },
+                        modifier = Modifier.fillMaxWidth(),
+                        suffix = { Text("步/分钟") }
+                    )
+                    Text(
+                        "常见步频范围: 150-180 步/分钟",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 提示设置
+                Column {
+                    Text("提示设置", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = enableSound,
+                            onCheckedChange = { enableSound = it }
+                        )
+                        Text("声音提示", modifier = Modifier.clickable {
+                            enableSound = !enableSound
+                        })
+                    }
+
+                    if (enableSound) {
+                        Column {
+                            Text("音量: $soundVolume%", style = MaterialTheme.typography.bodySmall)
+                            Slider(
+                                value = soundVolume.toFloat(),
+                                onValueChange = { soundVolume = it.toInt() },
+                                valueRange = 0f..100f,
+                                steps = 4,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = enableVibration,
+                            onCheckedChange = { enableVibration = it }
+                        )
+                        Text("震动提示", modifier = Modifier.clickable {
+                            enableVibration = !enableVibration
+                        })
+                    }
+                }
+
+                // 蓝牙设置
+                Column {
+                    Text("蓝牙设置", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = enableBluetooth,
+                            onCheckedChange = {
+                                enableBluetooth = it
+                                if (it) {
+                                    viewModel.connectBluetooth()
+                                } else {
+                                    viewModel.disconnectBluetooth()
+                                }
+                            }
+                        )
+                        Text("蓝牙音频播放", modifier = Modifier.clickable {
+                            enableBluetooth = !enableBluetooth
+                            if (!enableBluetooth) {
+                                viewModel.connectBluetooth()
+                            } else {
+                                viewModel.disconnectBluetooth()
+                            }
+                        })
+                    }
+
+                    if (enableBluetooth) {
+                        Text(
+                            "连接蓝牙设备播放语音提示",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // 测试声音按钮
+                if (enableSound) {
+                    Button(
+                        onClick = {
+                            // 这里可以添加测试声音的功能
+                            // 由于在Composable中无法直接调用ViewModel，我们需要其他方式
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("测试提示音")
+                    }
+                }
+
+                // 使用说明
                 Text(
-                    "设置您每天想要达到的步数目标",
+                    "注意：此版本计步器需要在应用前台运行。当应用进入后台时，计步将暂停。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         confirmButton = {
             Button(onClick = {
-                onSave(stepGoal.toIntOrNull() ?: 10000)
+                val newPace = targetPace.toIntOrNull() ?: 160
+                viewModel.updateTargetPace(newPace)
+                viewModel.updateSettings(StepCounterSettings(
+                    targetPace = newPace,
+                    enableSound = enableSound,
+                    enableVibration = enableVibration,
+                    enableBluetooth = enableBluetooth
+                ))
                 onDismiss()
             }) {
                 Text("保存")

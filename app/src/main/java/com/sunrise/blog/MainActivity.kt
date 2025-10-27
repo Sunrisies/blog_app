@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+
                     MainApp()
                 }
             }
@@ -188,7 +189,8 @@ fun NavigationHost(
             PasswordManagerScreen(navController = navController)
         }
         composable("stepCounter") {
-            StepCounterScreen(navController = navController)
+            MetronomeScreen(navController = navController)
+//            StepCounterScreen(navController = navController)
         }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
