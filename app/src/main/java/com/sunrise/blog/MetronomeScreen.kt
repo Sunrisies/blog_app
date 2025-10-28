@@ -21,14 +21,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.sunrise.blog.model.StepSide
-import com.sunrise.blog.viewmodel.SimpleMetronomeViewModel
+import com.sunrise.blog.viewmodel.AudioTrackMetronomeViewModel
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
-// 在 MetronomeScreen 中更新调用
 @Composable
 fun MetronomeScreen(navController: NavController) {
-    val viewModel: SimpleMetronomeViewModel = viewModel()
+    val viewModel: AudioTrackMetronomeViewModel = viewModel()
     val metronomeData by viewModel.metronomeData.collectAsState()
 
     var showVolumeDialog by remember { mutableStateOf(false) }
@@ -38,11 +37,11 @@ fun MetronomeScreen(navController: NavController) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 顶部栏 - 添加音量按钮
+        // 顶部栏
         TopAppBar(
             title = {
                 Text(
-                    "跑步步频器",
+                    "高精度跑步步频器",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -68,7 +67,7 @@ fun MetronomeScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // 步频显示和控制 - 添加实际步频参数
+            // 步频显示和控制
             TempoControl(
                 tempo = metronomeData.tempo,
                 actualTempo = metronomeData.actualTempo,
@@ -95,14 +94,14 @@ fun MetronomeScreen(navController: NavController) {
             )
 
             // 步频说明
-            TempoGuide(modifier = Modifier.fillMaxWidth())
+//            TempoGuide(modifier = Modifier.fillMaxWidth())
         }
     }
 
     // 音量控制对话框
     if (showVolumeDialog) {
         VolumeControlDialog(
-            currentVolume = 80, // 默认音量
+            currentVolume = metronomeData.volume,
             onVolumeChange = { newVolume ->
                 viewModel.setVolume(newVolume)
             },
@@ -110,6 +109,61 @@ fun MetronomeScreen(navController: NavController) {
         )
     }
 }
+
+@Composable
+fun VolumeControlDialog(
+    currentVolume: Int,
+    onVolumeChange: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var tempVolume by remember { mutableStateOf(currentVolume) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("音量设置") },
+        text = {
+            Column {
+                Text("音量: $tempVolume%", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Slider(
+                    value = tempVolume.toFloat(),
+                    onValueChange = { tempVolume = it.toInt() },
+                    valueRange = 0f..100f,
+                    steps = 9,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("0%", style = MaterialTheme.typography.bodySmall)
+                    Text("100%", style = MaterialTheme.typography.bodySmall)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "使用 AudioTrack 高精度音频引擎",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onVolumeChange(tempVolume)
+                onDismiss()
+            }) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
 
 
 @Composable
@@ -214,7 +268,7 @@ fun TempoControl(
 
             // 步频调节滑块
             var sliderValue by remember { mutableStateOf(tempo.toFloat()) }
-            val viewModel: SimpleMetronomeViewModel = viewModel()
+            val viewModel: AudioTrackMetronomeViewModel = viewModel()
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 Slider(
@@ -361,12 +415,12 @@ fun FootAnimation(
         }
 
         // 中间的连接线
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-        )
+//        Box(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .height(4.dp)
+//                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+//        )
     }
 }
 
@@ -462,39 +516,39 @@ fun TempoGuide(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun VolumeControlDialog(
-    currentVolume: Int,
-    onVolumeChange: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("音量设置") },
-        text = {
-            Column {
-                Text("音量: $currentVolume%", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(16.dp))
-                Slider(
-                    value = currentVolume.toFloat(),
-                    onValueChange = { onVolumeChange(it.toInt()) },
-                    valueRange = 0f..100f,
-                    steps = 9,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("0%", style = MaterialTheme.typography.bodySmall)
-                    Text("100%", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("确定")
-            }
-        }
-    )
-}
+//@Composable
+//fun VolumeControlDialog(
+//    currentVolume: Int,
+//    onVolumeChange: (Int) -> Unit,
+//    onDismiss: () -> Unit
+//) {
+//    AlertDialog(
+//        onDismissRequest = onDismiss,
+//        title = { Text("音量设置") },
+//        text = {
+//            Column {
+//                Text("音量: $currentVolume%", style = MaterialTheme.typography.bodyMedium)
+//                Spacer(modifier = Modifier.height(16.dp))
+//                Slider(
+//                    value = currentVolume.toFloat(),
+//                    onValueChange = { onVolumeChange(it.toInt()) },
+//                    valueRange = 0f..100f,
+//                    steps = 9,
+//                    modifier = Modifier.fillMaxWidth()
+//                )
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.SpaceBetween
+//                ) {
+//                    Text("0%", style = MaterialTheme.typography.bodySmall)
+//                    Text("100%", style = MaterialTheme.typography.bodySmall)
+//                }
+//            }
+//        },
+//        confirmButton = {
+//            Button(onClick = onDismiss) {
+//                Text("确定")
+//            }
+//        }
+//    )
+//}

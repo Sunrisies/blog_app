@@ -40,13 +40,7 @@
             </intent-filter>
 
         </activity>
-        <!-- 计步器服务 -->
-<!--        <service-->
-<!--            android:name=".service.StepCounterService"-->
-<!--            android:foregroundServiceType="dataSync"-->
-<!--        android:enabled="true"-->
-<!--        android:exported="false"-->
-<!--            tools:ignore="ForegroundServicePermission" />-->
+
     </application>
 
 </manifest>

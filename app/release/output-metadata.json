@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 29359285,
-      "versionName": "1.1-20251027-1725",
-      "outputFile": "blog-1.1-20251027-1725.apk"
+      "versionCode": 29360228,
+      "versionName": "1.1-20251028-0908",
+      "outputFile": "blog-1.1-20251028-0908.apk"
     }
   ],
   "elementType": "File",
@@ -22,14 +22,14 @@
       "minApi": 28,
       "maxApi": 30,
       "baselineProfiles": [
-        "baselineProfiles/1/blog-1.1-20251027-1725.dm"
+        "baselineProfiles/1/blog-1.1-20251028-0908.dm"
       ]
     },
     {
       "minApi": 31,
       "maxApi": 2147483647,
       "baselineProfiles": [
-        "baselineProfiles/0/blog-1.1-20251027-1725.dm"
+        "baselineProfiles/0/blog-1.1-20251028-0908.dm"
       ]
     }
   ],

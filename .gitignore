@@ -14,3 +14,4 @@
 .cxx
 local.properties
 change-commit-date.sh
+*.apk
