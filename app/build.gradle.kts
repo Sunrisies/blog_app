@@ -10,7 +10,6 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-
 android {
     namespace = "com.sunrise.blog"
     compileSdk = 36
@@ -19,8 +18,6 @@ android {
         applicationId = "com.sunrise.blog"
         minSdk = 26
         targetSdk = 36
-//        versionCode = 1
-//        versionName = "1.0"
         versionCode = generateVersionCode()
         versionName = generateVersionName()
 
@@ -30,36 +27,41 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
-            isShrinkResources = true // 移除未使用的资源
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+        debug {
+            // 禁用 APK 分割以避免构建问题
+            splits.abi.isEnable = false
+        }
     }
+    
     splits {
-//        abi {
-//
-//            isEnable  = true
-//
-//            reset()
-//
-//            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64") //select ABIs to build APKs for
-//
-//            // Specify that we do not want to also generate a universal APK that includes all ABIs
-//            isUniversalApk =  true
-//        }
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true  // 生成通用 APK
+        }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    
     kotlinOptions {
         jvmTarget = "11"
     }
+    
     buildFeatures {
         compose = true
+        viewBinding = true
     }
+    
     applicationVariants.all{
         val variant = this
         variant.outputs
@@ -68,10 +70,16 @@ android {
                 val outputFileName = "blog-${variant.versionName}.apk"
                 output.outputFileName = outputFileName
             }
-
-
+    }
+    
+    // 添加 GStreamer 的本地库路径
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
     }
 }
+
 // 生成版本代码（基于时间戳）
 fun generateVersionCode(): Int {
     // 使用当前时间的分钟数作为版本代码（确保每次构建都不同）
@@ -81,10 +89,11 @@ fun generateVersionCode(): Int {
 
 // 生成版本名称（包含时间和版本信息）
 fun generateVersionName(): String {
-    val baseVersion = "1.1" // 基础版本号
+    val baseVersion = "1.1"
     val date = SimpleDateFormat("yyyyMMdd-HHmm", Locale.getDefault()).format(Date())
     return "$baseVersion-$date"
 }
+
 dependencies {
     implementation(libs.androidx.room.common.jvm)
     val nav_version = "2.9.5"
@@ -116,7 +125,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
     implementation("com.google.code.gson:gson:2.10.1")
 
-
     // Room 数据库
     implementation("androidx.room:room-runtime:2.6.0")
     implementation("androidx.room:room-ktx:2.6.0")
@@ -125,6 +133,13 @@ dependencies {
     // 加密存储（可选，但推荐用于密码管理）
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.core:core-ktx:1.6.0")
+    
+    // 视频播放器 - 使用本地 GStreamer 库
+    
+    // ViewModel 和 LiveData
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

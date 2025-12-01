@@ -53,12 +53,21 @@ fun ToolsScreen(navController: NavController) {
                 color = 0xFF4CAF50
             ),
             ToolItem(
-              id = "stepCounter",
-                name = "",
-                description = "",
+              id = "metronome",
+                name = "步频器",
+                description = "步频器",
                 iconResId = android.R.drawable.ic_menu_rotate,
-                route = "stepCounter",
+                route = "metronome",
                 color = 0xFF4CAF50
+            ),
+
+            ToolItem(
+                id = "video_player",
+                name = "视频播放器",
+                description = "支持RTSP/RTMP等流媒体协议",
+                iconResId = android.R.drawable.ic_media_play,
+                route = "video_player",
+                color = 0xFFE91E63
             ),
             ToolItem(
                 id = "base64",
@@ -274,6 +283,11 @@ fun TimestampToolScreen(navController: NavController) {
         content = "时间戳转换工具内容..."
     )
 }
+
+//@Composable
+//fun VideoPlayerScreen(navController: NavController) {
+//    com.sunrise.blog.VideoPlayerScreen(navController)
+//}
 
 // 通用的工具详情页面模板
 @OptIn(ExperimentalMaterial3Api::class)
