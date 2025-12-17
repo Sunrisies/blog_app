@@ -96,6 +96,7 @@ fun generateVersionName(): String {
 
 dependencies {
     implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.documentfile)
     val nav_version = "2.9.5"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

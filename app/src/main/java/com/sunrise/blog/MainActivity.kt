@@ -127,7 +127,8 @@ fun BottomNavigationBar(
         "post_detail",
         "password_manager",
         "about",
-        "metronome"
+        "metronome",
+        "file_manager"
     )
 
 // 当前路由是否属于上述任一前缀
@@ -193,6 +194,9 @@ fun NavigationHost(
         composable("metronome") {
             MetronomeScreen(navController = navController)
 //            StepCounterScreen(navController = navController)
+        }
+        composable("file_manager") {
+            FileManagerScreen(navController = navController)
         }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
@@ -265,4 +269,3 @@ fun FavoritesScreen() {
         )
     }
 }
-
