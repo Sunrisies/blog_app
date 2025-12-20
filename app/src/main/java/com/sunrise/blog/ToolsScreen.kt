@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.sunrise.blog.util.FileStorageManager
+import com.sunrise.blog.util.MicrophonePermissionManager
+import com.sunrise.blog.util.AudioRecorder
 import java.io.File
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +54,7 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResultCallback
 import androidx.core.content.ContextCompat
 import android.provider.MediaStore
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 data class ToolItem(
     val id: String,
@@ -61,6 +64,7 @@ data class ToolItem(
     val route: String, // 导航路由
     val color: Long // 主题色
 )
+
 @Composable
 fun ToolsScreen(navController: NavController) {
     val tools = remember {
@@ -131,14 +135,6 @@ fun ToolsScreen(navController: NavController) {
                 color = 0xFF9C27B0
             ),
             ToolItem(
-                id = "markdown_editor",
-                name = "Markdown 编辑器",
-                description = "在线 Markdown 编辑和预览",
-                iconResId = android.R.drawable.ic_menu_edit,
-                route = "markdown_editor",
-                color = 0xFF607D8B
-            ),
-            ToolItem(
                 id = "unit_converter",
                 name = "单位换算",
                 description = "长度、重量、温度等单位换算",
@@ -161,6 +157,14 @@ fun ToolsScreen(navController: NavController) {
                 iconResId = android.R.drawable.ic_menu_save,
                 route = "file_manager",
                 color = 0xFF9E9E9E
+            ),
+            ToolItem(
+                id = "microphone_permission",
+                name = "麦克风权限",
+                description = "申请和管理麦克风录音权限",
+                iconResId = android.R.drawable.ic_btn_speak_now,
+                route = "microphone_permission",
+                color = 0xFF607D8B
             )
         )
     }
@@ -300,97 +304,29 @@ fun FileManagerScreen(navController: NavController) {
     val context = LocalContext.current
     val fileStorageManager = remember { FileStorageManager(context) }
     
-    var directoryName by rememberSaveable { mutableStateOf("") }
-    var externalDirectoryName by rememberSaveable { mutableStateOf("") }
-    var externalRootDirectoryName by rememberSaveable { mutableStateOf("") }
+    // 固定的目录名
+    val fixedDirectoryName = "HOVER"
+    
     var fileName by rememberSaveable { mutableStateOf("") }
-    var rootFileName by rememberSaveable { mutableStateOf("") }
-    var externalFileName by rememberSaveable { mutableStateOf("") }
-    var externalRootFileName by rememberSaveable { mutableStateOf("") }
     var fileContent by rememberSaveable { mutableStateOf("") }
     var operationResult by rememberSaveable { mutableStateOf("") }
-    var createdDirectory by remember { mutableStateOf<File?>(null) }
-    var createdFile by remember { mutableStateOf<File?>(null) }
-    var createdRootFile by remember { mutableStateOf<File?>(null) }
-    var rootFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    var fileList by remember { mutableStateOf<List<File>>(emptyList()) }
     var selectedFile by remember { mutableStateOf<File?>(null) }
-    var selectedSystemFileUri by remember { mutableStateOf<Uri?>(null) }
-    
-    // 请求存储权限
-    val storagePermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            operationResult = "存储权限已授予"
-            Toast.makeText(context, "存储权限已授予", Toast.LENGTH_SHORT).show()
-        } else {
-            operationResult = "存储权限被拒绝，请在设置中手动授予权限"
-            Toast.makeText(context, "存储权限被拒绝，请在设置中手动授予权限", Toast.LENGTH_LONG).show()
-        }
-    }
-    
-    // 系统文件选择器
-    val selectFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            selectedSystemFileUri = selectedUri
-            val fileName = fileStorageManager.getFileNameFromUri(selectedUri)
-            val content = fileStorageManager.readFileFromUri(selectedUri)
-            
-            if (content != null) {
-                fileContent = content
-                operationResult = "已从系统文件选择器加载文件: ${fileName ?: selectedUri.toString()}"
-            } else {
-                operationResult = "无法读取所选文件的内容"
-            }
-        }
-    }
-    
-    // SAF创建文件
-    val createDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/plain")
-    ) { uri: Uri? ->
-        uri?.let { fileUri ->
-            try {
-                context.contentResolver.openOutputStream(fileUri)?.use { outputStream ->
-                    outputStream.write(fileContent.toByteArray())
-                }
-                operationResult = "文件已成功保存到: $fileUri"
-            } catch (e: Exception) {
-                operationResult = "保存文件失败: ${e.message}"
-            }
-        }
-    }
-    
-    // 检查并请求存储权限
-    fun checkAndRequestStoragePermission() {
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                // Android 10及以上版本不需要请求WRITE_EXTERNAL_STORAGE权限
-                operationResult = "Android 10及以上版本不需要额外的存储权限"
-            }
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                operationResult = "存储权限已授予"
-            }
-            else -> {
-                storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-    }
     
     // 刷新文件列表
     fun refreshFileList() {
-        rootFiles = fileStorageManager.listRootFiles()
+        fileList = fileStorageManager.listFilesInDownloadSubDir(fixedDirectoryName)
     }
     
-    // 初始化时加载文件列表并检查权限
+    // 初始化时创建目录
     LaunchedEffect(Unit) {
-        refreshFileList()
-        checkAndRequestStoragePermission()
+        val result = fileStorageManager.createDirectoryInDownloadDir(fixedDirectoryName)
+        if (result.isSuccess) {
+            operationResult = "已创建/确认目录: $fixedDirectoryName"
+            refreshFileList()
+        } else {
+            operationResult = "创建目录失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+        }
     }
     
     Scaffold(
@@ -418,115 +354,20 @@ fun FileManagerScreen(navController: NavController) {
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                
+
+                val fixedDirectoryName目录 = ""
                 Text(
-                    text = "使用此工具可以创建目录、创建文件和读取文件内容",
+                    text = "在Download目录中自动创建$fixedDirectoryName目录，用于存储文件",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             
-            // 系统文件选择部分
-            item {
-                Text(
-                    text = "系统文件操作",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        selectFileLauncher.launch("*/*")
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("选择系统文件")
-                }
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (externalFileName.isNotEmpty() && fileContent.isNotEmpty()) {
-                            createDocumentLauncher.launch(externalFileName)
-                        } else {
-                            operationResult = "请提供文件名和内容"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = externalFileName.isNotEmpty() && fileContent.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("使用系统文件选择器保存文件")
-                }
-            }
-            
-            // 外部存储根目录操作部分
-            item {
-                Text(
-                    text = "外部存储根目录操作",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
             item {
                 OutlinedTextField(
-                    value = externalRootDirectoryName,
-                    onValueChange = { externalRootDirectoryName = it },
-                    label = { Text("外部存储根目录中的目录名") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.Folder, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (externalRootDirectoryName.isNotEmpty()) {
-                            val result = fileStorageManager.createDirectoryInExternalRoot(
-                                externalRootDirectoryName
-                            )
-                            
-                            operationResult = when {
-                                result.isSuccess -> {
-                                    "成功在外部存储根目录创建子目录: ${result.getOrNull()}"
-                                }
-                                result.exceptionOrNull() is SecurityException -> {
-                                    "权限不足，请检查存储权限设置"
-                                }
-                                result.exceptionOrNull() is Exception -> {
-                                    "在外部存储根目录创建子目录失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                }
-                                else -> {
-                                    "在外部存储根目录创建子目录失败: 未知错误"
-                                }
-                            }
-                        } else {
-                            operationResult = "请提供目录名"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = externalRootDirectoryName.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Create, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在外部存储根目录创建子目录")
-                }
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = externalRootFileName,
-                    onValueChange = { externalRootFileName = it },
-                    label = { Text("外部存储根目录中的文件名") },
+                    value = fileName,
+                    onValueChange = { fileName = it },
+                    label = { Text("文件名") },
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
                         Icon(Icons.Default.FileOpen, contentDescription = null)
@@ -535,26 +376,43 @@ fun FileManagerScreen(navController: NavController) {
             }
             
             item {
+                OutlinedTextField(
+                    value = fileContent,
+                    onValueChange = { fileContent = it },
+                    label = { Text("文件内容") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        keyboardType = KeyboardType.Text
+                    ),
+                    minLines = 3,
+                    maxLines = 5
+                )
+            }
+            
+            item {
                 Button(
                     onClick = {
-                        if (externalRootFileName.isNotEmpty() && fileContent.isNotEmpty()) {
-                            val result = fileStorageManager.createFileInExternalRoot(
-                                externalRootFileName, 
+                        if (fileName.isNotEmpty() && fileContent.isNotEmpty()) {
+                            val result = fileStorageManager.createFileInDownloadSubDir(
+                                fixedDirectoryName,
+                                fileName,
                                 fileContent
                             )
                             
                             operationResult = when {
                                 result.isSuccess -> {
-                                    "成功在外部存储根目录创建文件: ${result.getOrNull()}"
+                                    refreshFileList()
+                                    "成功创建文件: ${result.getOrNull()}"
                                 }
                                 result.exceptionOrNull() is SecurityException -> {
                                     "权限不足，请检查存储权限设置"
                                 }
                                 result.exceptionOrNull() is Exception -> {
-                                    "在外部存储根目录创建文件失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                    "创建文件失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
                                 }
                                 else -> {
-                                    "在外部存储根目录创建文件失败: 未知错误"
+                                    "创建文件失败: 未知错误"
                                 }
                             }
                         } else {
@@ -562,171 +420,19 @@ fun FileManagerScreen(navController: NavController) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = externalRootFileName.isNotEmpty() && fileContent.isNotEmpty()
+                    enabled = fileName.isNotEmpty() && fileContent.isNotEmpty()
                 ) {
                     Icon(Icons.Default.Save, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("在外部存储根目录创建文件")
+                    Text("创建文件")
                 }
-            }
-            
-            // 外部存储公共目录操作部分
-            item {
-                Text(
-                    text = "外部存储公共目录操作",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = externalDirectoryName,
-                    onValueChange = { externalDirectoryName = it },
-                    label = { Text("外部存储中的目录名") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.Folder, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (externalDirectoryName.isNotEmpty()) {
-                            val result = fileStorageManager.createDirectoryInExternalPublicDir(
-                                externalDirectoryName,
-                                Environment.DIRECTORY_DOWNLOADS
-                            )
-                            
-                            operationResult = when {
-                                result.isSuccess -> {
-                                    "成功在Download目录创建子目录: ${result.getOrNull()}"
-                                }
-                                result.exceptionOrNull() is SecurityException -> {
-                                    "权限不足，请检查存储权限设置"
-                                }
-                                result.exceptionOrNull() is Exception -> {
-                                    "在Download目录创建子目录失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                }
-                                else -> {
-                                    "在Download目录创建子目录失败: 未知错误"
-                                }
-                            }
-                        } else {
-                            operationResult = "请提供目录名"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = externalDirectoryName.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Create, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在Download目录创建子目录")
-                }
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = externalFileName,
-                    onValueChange = { externalFileName = it },
-                    label = { Text("外部存储中的文件名") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.FileOpen, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (externalFileName.isNotEmpty() && fileContent.isNotEmpty()) {
-                            val result = fileStorageManager.createFileInExternalPublicDir(
-                                externalFileName, 
-                                fileContent, 
-                                Environment.DIRECTORY_DOWNLOADS
-                            )
-                            
-                            operationResult = when {
-                                result.isSuccess -> {
-                                    "成功在Download目录创建文件: ${result.getOrNull()}"
-                                }
-                                result.exceptionOrNull() is SecurityException -> {
-                                    "权限不足，请检查存储权限设置"
-                                }
-                                result.exceptionOrNull() is Exception -> {
-                                    "在Download目录创建文件失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                }
-                                else -> {
-                                    "在Download目录创建文件失败: 未知错误"
-                                }
-                            }
-                        } else {
-                            operationResult = "请提供文件名和内容"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = externalFileName.isNotEmpty() && fileContent.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在Download目录创建文件")
-                }
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (externalFileName.isNotEmpty() && fileContent.isNotEmpty()) {
-                            val result = fileStorageManager.createFileInExternalPublicDir(
-                                externalFileName, 
-                                fileContent, 
-                                Environment.DIRECTORY_DOCUMENTS
-                            )
-                            
-                            operationResult = when {
-                                result.isSuccess -> {
-                                    "成功在Documents目录创建文件: ${result.getOrNull()}"
-                                }
-                                result.exceptionOrNull() is SecurityException -> {
-                                    "权限不足，请检查存储权限设置"
-                                }
-                                result.exceptionOrNull() is Exception -> {
-                                    "在Documents目录创建文件失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                }
-                                else -> {
-                                    "在Documents目录创建文件失败: 未知错误"
-                                }
-                            }
-                        } else {
-                            operationResult = "请提供文件名和内容"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = externalFileName.isNotEmpty() && fileContent.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在Documents目录创建文件")
-                }
-            }
-            
-            // 文件列表部分
-            item {
-                Text(
-                    text = "根目录文件列表",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
             }
             
             item {
                 Button(
                     onClick = {
                         refreshFileList()
-                        operationResult = "文件列表已刷新，共 ${rootFiles.size} 个项目"
+                        operationResult = "文件列表已刷新，共 ${fileList.size} 个项目"
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -736,7 +442,7 @@ fun FileManagerScreen(navController: NavController) {
                 }
             }
             
-            items(rootFiles) { file ->
+            items(fileList) { file ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -745,7 +451,10 @@ fun FileManagerScreen(navController: NavController) {
                             selectedFile = file
                             // 自动读取选中文件的内容
                             if (file.isFile) {
-                                val content = fileStorageManager.readFile(file)
+                                val content = fileStorageManager.readFileFromDownloadSubDir(
+                                    fixedDirectoryName,
+                                    file.name
+                                )
                                 fileContent = content ?: ""
                                 operationResult = "已选择文件: ${file.name}"
                             } else {
@@ -792,79 +501,14 @@ fun FileManagerScreen(navController: NavController) {
                 }
             }
             
-            // 分隔线
-            item {
-                Divider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-            }
-            
-            // 在根目录下创建文件的部分
-            item {
-                Text(
-                    text = "在应用内部存储根目录下创建文件",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = rootFileName,
-                    onValueChange = { rootFileName = it },
-                    label = { Text("应用内部存储中的文件名") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.FileOpen, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = fileContent,
-                    onValueChange = { fileContent = it },
-                    label = { Text("文件内容") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        keyboardType = KeyboardType.Text
-                    ),
-                    minLines = 3,
-                    maxLines = 5
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (rootFileName.isNotEmpty()) {
-                            createdRootFile = fileStorageManager.createFileInRoot(rootFileName, fileContent)
-                            operationResult = if (createdRootFile != null) {
-                                refreshFileList()
-                                "成功在应用内部存储创建文件: ${createdRootFile?.name}"
-                            } else {
-                                "在应用内部存储创建文件失败"
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = rootFileName.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Create, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在应用内部存储创建文件")
-                }
-            }
-            
             item {
                 Button(
                     onClick = {
                         if (selectedFile != null && selectedFile!!.isFile) {
-                            val content = fileStorageManager.readFile(selectedFile!!)
+                            val content = fileStorageManager.readFileFromDownloadSubDir(
+                                fixedDirectoryName,
+                                selectedFile!!.name
+                            )
                             operationResult = if (content != null) {
                                 fileContent = content
                                 "已读取文件内容: ${selectedFile?.name}"
@@ -887,12 +531,15 @@ fun FileManagerScreen(navController: NavController) {
                 Button(
                     onClick = {
                         if (selectedFile != null) {
-                            val deleted = fileStorageManager.deleteFileOrDirectory(selectedFile!!)
+                            val deleted = fileStorageManager.deleteFileFromDownloadSubDir(
+                                fixedDirectoryName,
+                                selectedFile!!.name
+                            )
                             operationResult = if (deleted) {
                                 refreshFileList()
-                                "文件/目录已删除: ${selectedFile?.name}"
+                                "文件已删除: ${selectedFile?.name}"
                             } else {
-                                "删除文件/目录失败"
+                                "删除文件失败"
                             }
                             selectedFile = null
                         }
@@ -903,94 +550,7 @@ fun FileManagerScreen(navController: NavController) {
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("删除选中项")
-                }
-            }
-            
-            // 分隔线
-            item {
-                Divider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-            }
-            
-            // 在指定目录下创建文件的部分
-            item {
-                Text(
-                    text = "在应用内部指定目录下创建文件",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = directoryName,
-                    onValueChange = { directoryName = it },
-                    label = { Text("目录名称") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.Folder, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (directoryName.isNotEmpty()) {
-                            createdDirectory = fileStorageManager.createDirectory(directoryName)
-                            operationResult = if (createdDirectory != null) {
-                                refreshFileList()
-                                "成功创建目录: ${createdDirectory?.name}"
-                            } else {
-                                "创建目录失败"
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = directoryName.isNotEmpty()
-                ) {
-                    Icon(Icons.Default.Create, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("创建目录")
-                }
-            }
-            
-            item {
-                OutlinedTextField(
-                    value = fileName,
-                    onValueChange = { fileName = it },
-                    label = { Text("文件名称") },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.FileOpen, contentDescription = null)
-                    }
-                )
-            }
-            
-            item {
-                Button(
-                    onClick = {
-                        if (fileName.isNotEmpty() && createdDirectory != null) {
-                            createdFile = fileStorageManager.createFile(createdDirectory!!, fileName, fileContent)
-                            operationResult = if (createdFile != null) {
-                                refreshFileList()
-                                "成功创建文件: ${createdFile?.name}"
-                            } else {
-                                "创建文件失败"
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = fileName.isNotEmpty() && createdDirectory != null
-                ) {
-                    Icon(Icons.Default.Create, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在指定目录创建文件")
+                    Text("删除选中文件")
                 }
             }
             
@@ -1088,5 +648,300 @@ fun ToolDetailScreen(navController: NavController, title: String, content: Strin
         }
     }
 }
+
+// 添加麦克风权限管理屏幕
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MicrophonePermissionScreen(navController: NavController) {
+    val context = LocalContext.current
+    val microphonePermissionManager = remember { MicrophonePermissionManager(context) }
+    val audioRecorder = remember { AudioRecorder() }
+    val fileStorageManager = remember { FileStorageManager(context) }
+    
+    var permissionStatus by rememberSaveable { mutableStateOf(false) }
+    var operationResult by rememberSaveable { mutableStateOf("") }
+    var isRecording by rememberSaveable { mutableStateOf(false) }
+    var recordedFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val recordAudioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
+        
+        permissionStatus = recordAudioGranted
+        operationResult = if (recordAudioGranted) {
+            "麦克风权限已授予，可以开始录音"
+        } else {
+            "麦克风权限被拒绝，请在设置中手动开启权限"
+        }
+    }
+    
+    // 初始化时检查权限状态
+    LaunchedEffect(Unit) {
+        permissionStatus = microphonePermissionManager.isMicrophonePermissionGranted()
+        operationResult = if (permissionStatus) {
+            "麦克风权限已授予，可以开始录音"
+        } else {
+            "麦克风权限未授予，请点击下方按钮申请权限"
+        }
+    }
+    
+    // 开始录音函数
+    fun startRecording() {
+        if (!permissionStatus) {
+            operationResult = "请先授予麦克风权限"
+            return
+        }
+        
+        try {
+            // 创建录音文件路径
+            val downloadDir = fileStorageManager.getExternalDownloadDir()
+            val myAppDir = File(downloadDir, "MyAppDirectory")
+            if (!myAppDir.exists()) {
+                myAppDir.mkdirs()
+            }
+            
+            val fileName = "recording_${System.currentTimeMillis()}.3gp"
+            val filePath = File(myAppDir, fileName).absolutePath
+            
+            if (audioRecorder.startRecording(filePath)) {
+                isRecording = true
+                recordedFilePath = null
+                operationResult = "正在录音中...点击停止按钮结束录音"
+            } else {
+                operationResult = "开始录音失败"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            operationResult = "开始录音时发生错误: ${e.message}"
+        }
+    }
+    
+    // 停止录音函数
+    fun stopRecording() {
+        try {
+            val filePath = audioRecorder.stopRecording()
+            if (filePath != null) {
+                isRecording = false
+                recordedFilePath = filePath
+                operationResult = "录音已保存到: $filePath"
+            } else {
+                operationResult = "停止录音失败"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            operationResult = "停止录音时发生错误: ${e.message}"
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("麦克风权限管理") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Text(
+                    text = "麦克风权限管理",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "为了能够录制音频，应用需要获得麦克风访问权限。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (permissionStatus) 
+                            MaterialTheme.colorScheme.primaryContainer 
+                        else 
+                            MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (permissionStatus) Icons.Default.Check else Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = if (permissionStatus) "权限已授予" else "权限未授予",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            item {
+                Button(
+                    onClick = {
+                        if (!microphonePermissionManager.isMicrophonePermissionGranted()) {
+                            permissionLauncher.launch(
+                                microphonePermissionManager.getRequiredPermissions()
+                            )
+                        } else {
+                            operationResult = "麦克风权限已授予，无需重复申请"
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !microphonePermissionManager.isMicrophonePermissionGranted()
+                ) {
+                    Icon(Icons.Default.Mic, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("申请麦克风权限")
+                }
+            }
+            
+            item {
+                Text(
+                    text = "录音功能演示",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "获得权限后，您可以使用下方按钮进行录音测试",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = {
+                            if (isRecording) {
+                                stopRecording()
+                            } else {
+                                startRecording()
+                            }
+                        },
+                        enabled = permissionStatus,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.FiberManualRecord,
+                            contentDescription = null
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isRecording) "停止录音" else "开始录音")
+                    }
+                }
+            }
+            
+            item {
+                Text(
+                    text = "为什么需要这个权限？",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "• 录制语音笔记\n• 进行语音通话\n• 语音识别功能\n• 其他音频相关功能",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            item {
+                if (operationResult.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = operationResult,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+//@Composable
+//fun BottomNavigationBar1(
+//    navController: NavController,
+//    items: List<BottomNavItem>
+//) {
+//    val navBackStackEntry by navController.currentBackStackEntryAsState()
+//    val currentRoute = navBackStackEntry?.destination?.route
+//    // 在详情页面隐藏底部导航栏
+//    val skipRoutes = setOf(
+//        "post_detail",
+//        "password_manager",
+//        "about",
+//        "metronome",
+//        "file_manager",
+//        "microphone_permission"
+//    )
+//
+//// 当前路由是否属于上述任一前缀
+//    val skipBottomBar = skipRoutes.any { currentRoute?.startsWith(it) == true }
+//    if (skipBottomBar) return
+//    NavigationBar {
+//        items.forEach { item ->
+//            NavigationBarItem(
+//                selected = currentRoute == item.route,
+//                onClick = {
+//                    navController.navigate(item.route) {
+//                        // 清除返回栈直到首页，避免堆叠过多页面
+//                        popUpTo(navController.graph.findStartDestination().id) {
+//                            saveState = true
+//                        }
+//                        launchSingleTop = true
+//                        restoreState = true
+//                    }
+//                },
+//                icon = {
+//                    Icon(
+//                        imageVector = item.icon,
+//                        contentDescription = item.contentDescription
+//                    )
+//                },
+//                label = {
+//                    Text(text = item.title)
+//                }
+//            )
+//        }
+//    }
+//}
+//
+//
 
 

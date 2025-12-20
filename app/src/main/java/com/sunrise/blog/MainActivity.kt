@@ -128,7 +128,8 @@ fun BottomNavigationBar(
         "password_manager",
         "about",
         "metronome",
-        "file_manager"
+        "file_manager",
+        "microphone_permission"
     )
 
 // 当前路由是否属于上述任一前缀
@@ -197,6 +198,10 @@ fun NavigationHost(
         }
         composable("file_manager") {
             FileManagerScreen(navController = navController)
+        }
+
+        composable("microphone_permission") {
+            MicrophonePermissionScreen(navController = navController)
         }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
