@@ -1,9 +1,11 @@
 package com.sunrise.blog
 
 import android.Manifest
+import android.graphics.Bitmap
 import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -27,10 +30,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.common.BitMatrix
 import com.sunrise.blog.util.AudioRecorder
+import com.sunrise.blog.util.FilePermissionManager
 import com.sunrise.blog.util.FileStorageManager
 import com.sunrise.blog.util.MicrophonePermissionManager
-import com.sunrise.blog.util.FilePermissionManager
 import com.sunrise.blog.util.RootFileStorageManager
 import java.io.File
 
@@ -270,6 +277,322 @@ fun ToolItemCard(tool: ToolItem, onClick: () -> Unit) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp)
             )
+        }
+    }
+}
+
+// 二维码生成器屏幕
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QrCodeGeneratorScreen(navController: NavController) {
+    var qrContent by rememberSaveable { mutableStateOf("") }
+    var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var errorMessage by rememberSaveable { mutableStateOf("") }
+    var showSavedMessage by rememberSaveable { mutableStateOf("") }
+    
+    val context = LocalContext.current
+    val filePermissionManager = remember { FilePermissionManager(context) }
+    var permissionStatus by rememberSaveable { mutableStateOf(false) }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        permissionStatus = allGranted
+        if (!allGranted) {
+            errorMessage = "存储权限被拒绝，无法保存二维码"
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        permissionStatus = filePermissionManager.isFilePermissionGranted()
+    }
+    
+    // 生成二维码函数
+    fun generateQrCode() {
+        if (qrContent.isBlank()) {
+            errorMessage = "请输入要生成二维码的内容"
+            return
+        }
+        
+        errorMessage = ""
+        try {
+            val hints = mutableMapOf<EncodeHintType, Any>()
+            hints[EncodeHintType.CHARACTER_SET] = "UTF-8"
+            hints[EncodeHintType.MARGIN] = 1
+            
+            val bitMatrix: BitMatrix = MultiFormatWriter().encode(
+                qrContent,
+                BarcodeFormat.QR_CODE,
+                512,
+                512,
+                hints
+            )
+            
+            val width = bitMatrix.width
+            val height = bitMatrix.height
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+                }
+            }
+            
+            qrBitmap = bitmap
+        } catch (e: Exception) {
+            errorMessage = "生成二维码失败: ${e.message}"
+        }
+    }
+    
+    // 保存二维码到文件
+    fun saveQrCodeToFile() {
+        if (qrBitmap == null) {
+            errorMessage = "请先生成二维码"
+            return
+        }
+        
+        if (!permissionStatus) {
+            errorMessage = "请先授予存储权限"
+            permissionLauncher.launch(filePermissionManager.getRequiredPermissions())
+            return
+        }
+        
+        try {
+            val fileName = "qr_code_${System.currentTimeMillis()}.png"
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Download/HOVER")
+            }
+            
+            val resolver = context.contentResolver
+            val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    qrBitmap?.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                    outputStream.flush()
+                }
+                
+                showSavedMessage = "二维码已保存到相册/HOVER目录"
+                errorMessage = ""
+            } else {
+                errorMessage = "保存失败：无法创建文件"
+            }
+        } catch (e: Exception) {
+            errorMessage = "保存失败: ${e.message}"
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("二维码生成") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 说明文字
+            item {
+                Text(
+                    text = "二维码生成器",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "输入文本内容，生成对应的二维码图片",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            // 输入框
+            item {
+                OutlinedTextField(
+                    value = qrContent,
+                    onValueChange = { 
+                        qrContent = it 
+                        errorMessage = ""
+                    },
+                    label = { Text("二维码内容") },
+                    placeholder = { Text("输入文本、URL、联系方式等") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        keyboardType = KeyboardType.Text
+                    ),
+                    minLines = 3,
+                    maxLines = 5,
+                    leadingIcon = {
+                        Icon(Icons.Default.TextFields, contentDescription = null)
+                    }
+                )
+            }
+            
+            // 操作按钮
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { generateQrCode() },
+                        modifier = Modifier.weight(1f),
+                        enabled = qrContent.isNotBlank()
+                    ) {
+                        Icon(Icons.Default.QrCode, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("生成二维码")
+                    }
+                    
+                    Button(
+                        onClick = { 
+                            qrContent = "" 
+                            qrBitmap = null
+                            errorMessage = ""
+                            showSavedMessage = ""
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        Icon(Icons.Default.Clear, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("清空")
+                    }
+                }
+            }
+            
+            // 二维码显示区域
+            item {
+                if (qrBitmap != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "二维码预览",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .size(256.dp)
+                                    .background(Color.White)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = qrBitmap!!.asImageBitmap(),
+                                    contentDescription = "二维码",
+                                    modifier = Modifier.size(240.dp)
+                                )
+                            }
+                            
+                            // 保存按钮
+                            Button(
+                                onClick = { saveQrCodeToFile() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("保存二维码到文件")
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 错误信息
+            item {
+                if (errorMessage.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
+            // 保存成功信息
+            item {
+                if (showSavedMessage.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = showSavedMessage,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+            
+            // 使用说明
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "使用说明",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Text(
+                            text = "• 支持生成文本、URL、联系方式等二维码\n• 生成后可保存为PNG图片文件\n• 保存位置：Download/HOVER目录\n• 需要存储权限才能保存图片",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -122,14 +122,16 @@ fun BottomNavigationBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    // 在详情页面隐藏底部导航栏
+        // 在详情页面隐藏底部导航栏
     val skipRoutes = setOf(
         "post_detail",
         "password_manager",
         "about",
         "metronome",
         "file_manager",
-        "microphone_permission"
+        "microphone_permission",
+        "qr_generator",
+        "root_file_manager"
     )
 
 // 当前路由是否属于上述任一前缀
@@ -207,11 +209,11 @@ fun NavigationHost(
         composable("microphone_permission") {
             MicrophonePermissionScreen(navController = navController)
         }
+        composable("qr_generator") {
+            QrCodeGeneratorScreen(navController = navController)
+        }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")
-//        }
-//        composable("qr_generator") {
-//            ToolDetailScreen(navController, "二维码生成", "二维码生成功能")
 //        }
 //        composable("markdown_editor") {
 //            ToolDetailScreen(navController, "Markdown 编辑器", "Markdown 编辑器功能")
