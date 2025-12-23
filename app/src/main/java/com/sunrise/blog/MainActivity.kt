@@ -199,6 +199,10 @@ fun NavigationHost(
         composable("file_manager") {
             FileManagerScreen(navController = navController)
         }
+        
+        composable("root_file_manager") {
+            RootFileManagerScreen(navController = navController)
+        }
 
         composable("microphone_permission") {
             MicrophonePermissionScreen(navController = navController)

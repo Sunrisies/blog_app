@@ -31,6 +31,7 @@ import com.sunrise.blog.util.AudioRecorder
 import com.sunrise.blog.util.FileStorageManager
 import com.sunrise.blog.util.MicrophonePermissionManager
 import com.sunrise.blog.util.FilePermissionManager
+import com.sunrise.blog.util.RootFileStorageManager
 import java.io.File
 
 data class ToolItem(
@@ -129,10 +130,18 @@ fun ToolsScreen(navController: NavController) {
             ToolItem(
                 id = "file_manager",
                 name = "文件管理器",
-                description = "创建目录、文件和读取文件内容",
+                description = "在Download/HOVER目录创建和读取文件",
                 iconResId = android.R.drawable.ic_menu_save,
                 route = "file_manager",
                 color = 0xFF9E9E9E
+            ),
+            ToolItem(
+                id = "root_file_manager",
+                name = "根目录管理器",
+                description = "在真正的根目录下创建和读取文件，支持权限测试",
+                iconResId = android.R.drawable.ic_menu_save,
+                route = "root_file_manager",
+                color = 0xFF455A64
             ),
             ToolItem(
                 id = "microphone_permission",
@@ -285,7 +294,7 @@ fun FileManagerScreen(navController: NavController) {
     var operationResult by rememberSaveable { mutableStateOf("") }
     var fileList by remember { mutableStateOf<List<File>>(emptyList()) }
     var selectedFile by remember { mutableStateOf<File?>(null) }
-    var currentTab by remember { mutableStateOf(0) }
+    var currentTab by remember { mutableStateOf(0) } // 0: 根目录, 1: Download目录
     var permissionStatus by rememberSaveable { mutableStateOf(false) }
     
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -315,18 +324,24 @@ fun FileManagerScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         permissionStatus = filePermissionManager.isFilePermissionGranted()
         
-        if (isExternalStorageWritable()) {
-            val root = Environment.getRootDirectory().toString()
-            val mFolder = File(root, "Folder")
-            if (!mFolder.exists()) {
-                val res = mFolder.mkdir()
-                if (res) {
-                    operationResult = "已创建/确认目录: $fixedDirectoryName"
-                    refreshDownloadFileList()
+        // 初始化时自动创建根目录下的HOVER目录并显示文件列表
+        if (directoryPath.isNotEmpty() && permissionStatus) {
+            // 使用专门的HOVER目录创建方法
+            val hoverExists = fileStorageManager.isHOVERDirectoryExists()
+            if (!hoverExists) {
+                val createSuccess = fileStorageManager.createHOVERDirectory()
+                if (createSuccess) {
+                    operationResult = "已创建HOVER目录: $directoryPath"
                 } else {
-                    operationResult = "创建目录失败: ${res ?: "未知错误"}"
+                    operationResult = "创建HOVER目录失败"
                 }
+            } else {
+                operationResult = "HOVER目录已存在: $directoryPath"
             }
+            // 刷新文件列表
+            refreshRootDirFileList()
+        } else {
+            operationResult = "请设置目录路径并获取权限"
         }
     }
     
@@ -347,6 +362,7 @@ fun FileManagerScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // 权限状态显示和获取区域
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -404,6 +420,7 @@ fun FileManagerScreen(navController: NavController) {
                 }
             }
             
+            // 标签页切换
             TabRow(
                 selectedTabIndex = currentTab,
                 modifier = Modifier.fillMaxWidth()
@@ -443,7 +460,7 @@ fun FileManagerScreen(navController: NavController) {
 
                     Text(
                         text = when (currentTab) {
-                            0 -> "在指定目录下创建和读取文件（目录会自动创建）"
+                            0 -> "在Download/HOVER目录下创建和读取文件（使用MediaStore API）"
                             1 -> "在Download目录中自动创建${fixedDirectoryName}目录，用于存储文件"
                             else -> ""
                         },
@@ -458,7 +475,9 @@ fun FileManagerScreen(navController: NavController) {
                             value = directoryPath,
                             onValueChange = { 
                                 directoryPath = it 
-                                refreshRootDirFileList()
+                                if (permissionStatus) {
+                                    refreshRootDirFileList()
+                                }
                             },
                             label = { Text("目录路径（相对于根目录）") },
                             placeholder = { Text("例如: HOVER 或 MyFolder/SubFolder") },

@@ -10,7 +10,7 @@ import com.google.gson.reflect.TypeToken
 import java.lang.reflect.Type
 
 object RetrofitClient {
-    private const val BASE_URL = "https://api.chaoyang1024.top:12345/api/v1/"
+    private const val BASE_URL = "https://api.sunrise1024.top/api/v1/"
 
     // 创建类型安全的 Gson 实例
     private val gson = GsonBuilder()

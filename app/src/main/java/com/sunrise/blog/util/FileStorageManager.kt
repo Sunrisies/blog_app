@@ -446,8 +446,8 @@ class FileStorageManager(private val context: Context) {
     }
 
     /**
-     * 使用MediaStore在根目录下创建目录和文件（推荐用于根目录操作）
-     * @param directoryPath 目录路径（相对于根目录，如 "HOVER" 或 "MyApp/Logs"）
+     * 使用MediaStore在Download目录下创建文件（推荐用于根目录操作）
+     * @param directoryPath 目录路径（相对于Download目录，如 "HOVER" 或 "MyApp/Logs"）
      * @param fileName 文件名
      * @param content 文件内容
      * @return 创建的文件URI，如果失败则返回null
@@ -459,11 +459,13 @@ class FileStorageManager(private val context: Context) {
                 return Result.failure(Exception("外部存储不可用"))
             }
 
-            // 创建目录路径（在MediaStore中使用相对路径）
+            // 使用Download目录作为基础路径，确保兼容性
+            val baseRelativePath = Environment.DIRECTORY_DOWNLOADS
+            // 创建完整的相对路径：Download/HOVER/...
             val relativePath = if (directoryPath.isNotEmpty()) {
-                directoryPath
+                "$baseRelativePath/$directoryPath"
             } else {
-                ""
+                baseRelativePath
             }
 
             // 创建文件的ContentValues
@@ -499,16 +501,18 @@ class FileStorageManager(private val context: Context) {
     }
 
     /**
-     * 使用MediaStore读取根目录下指定路径的文件内容
-     * @param directoryPath 目录路径（相对于根目录）
+     * 使用MediaStore读取Download目录下指定路径的文件内容
+     * @param directoryPath 目录路径（相对于Download目录）
      * @param fileName 文件名
      * @return 文件内容字符串，如果失败则返回null
      */
     fun readFromRootDirWithMediaStore(directoryPath: String, fileName: String): String? {
         return try {
             val resolver = context.contentResolver
+            // 使用Download目录的完整路径
+            val fullPath = "Download/$directoryPath"
             val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-            val selectionArgs = arrayOf(fileName, directoryPath)
+            val selectionArgs = arrayOf(fileName, fullPath)
             
             val projection = arrayOf(MediaStore.MediaColumns._ID)
             val cursor = resolver.query(
@@ -538,15 +542,17 @@ class FileStorageManager(private val context: Context) {
     }
 
     /**
-     * 使用MediaStore列出根目录下指定路径的所有文件
-     * @param directoryPath 目录路径（相对于根目录）
+     * 使用MediaStore列出Download目录下指定路径的所有文件
+     * @param directoryPath 目录路径（相对于Download目录）
      * @return 文件列表（使用虚拟File对象，包含路径信息）
      */
     fun listFilesInRootDirWithMediaStore(directoryPath: String): List<File> {
         return try {
             val resolver = context.contentResolver
+            // 使用Download目录的完整路径
+            val fullPath = "Download/$directoryPath"
             val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-            val selectionArgs = arrayOf(directoryPath)
+            val selectionArgs = arrayOf(fullPath)
             
             val projection = arrayOf(MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH)
             val cursor = resolver.query(
@@ -577,16 +583,18 @@ class FileStorageManager(private val context: Context) {
     }
 
     /**
-     * 使用MediaStore删除根目录下指定路径的文件
-     * @param directoryPath 目录路径（相对于根目录）
+     * 使用MediaStore删除Download目录下指定路径的文件
+     * @param directoryPath 目录路径（相对于Download目录）
      * @param fileName 文件名
      * @return 是否删除成功
      */
     fun deleteFromRootDirWithMediaStore(directoryPath: String, fileName: String): Boolean {
         return try {
             val resolver = context.contentResolver
+            // 使用Download目录的完整路径
+            val fullPath = "Download/$directoryPath"
             val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-            val selectionArgs = arrayOf(fileName, directoryPath)
+            val selectionArgs = arrayOf(fileName, fullPath)
             
             val deletedCount = resolver.delete(
                 MediaStore.Files.getContentUri("external"),
@@ -619,6 +627,29 @@ class FileStorageManager(private val context: Context) {
             } else {
                 false
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /**
+     * 在根目录下创建HOVER目录（推荐方法）
+     * @return 是否成功
+     */
+    fun createHOVERDirectory(): Boolean {
+        return ensureDirectoryExists("HOVER")
+    }
+
+    /**
+     * 检查根目录下的HOVER目录是否存在
+     * @return 是否存在
+     */
+    fun isHOVERDirectoryExists(): Boolean {
+        return try {
+            val fileList = listFilesInRootDirWithMediaStore("HOVER")
+            // 如果能查询到目录内容（即使为空），说明目录存在
+            true
         } catch (e: Exception) {
             e.printStackTrace()
             false
