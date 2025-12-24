@@ -157,6 +157,14 @@ fun ToolsScreen(navController: NavController) {
                 iconResId = android.R.drawable.ic_btn_speak_now,
                 route = "microphone_permission",
                 color = 0xFF607D8B
+            ),
+            ToolItem(
+                id = "mapbox_map",
+                name = "Mapbox 地图",
+                description = "交互式地图，支持点击获取坐标",
+                iconResId = android.R.drawable.ic_menu_mapmode,
+                route = "mapbox_map",
+                color = 0xFF2196F3
             )
         )
     }

@@ -131,7 +131,8 @@ fun BottomNavigationBar(
         "file_manager",
         "microphone_permission",
         "qr_generator",
-        "root_file_manager"
+        "root_file_manager",
+        "mapbox_map"
     )
 
 // 当前路由是否属于上述任一前缀
@@ -211,6 +212,9 @@ fun NavigationHost(
         }
         composable("qr_generator") {
             QrCodeGeneratorScreen(navController = navController)
+        }
+        composable("mapbox_map") {
+            MapboxScreen(navController = navController)
         }
 //        composable("color_picker") {
 //            ToolDetailScreen(navController, "颜色选择器", "颜色选择器功能")

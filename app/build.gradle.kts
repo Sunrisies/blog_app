@@ -47,6 +47,9 @@ android {
             isUniversalApk = true  // 生成通用 APK
         }
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.3.2"
+    }
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -144,6 +147,8 @@ dependencies {
     // 二维码生成库
     implementation("com.google.zxing:core:3.5.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
+    implementation("com.mapbox.maps:android-ndk27:11.17.1")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
