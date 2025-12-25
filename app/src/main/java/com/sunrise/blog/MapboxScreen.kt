@@ -28,15 +28,15 @@ fun MapboxScreen(navController: NavController) {
         mapViewportState = mapViewportState,
     ) {
         // 可以在此处添加地图交互设置
-        gestures {
-            // 启用或禁用特定手势
-            val gesturesSettings = GesturesSettings().apply {
-                rotateEnabled = true
-                pitchEnabled = true
-                zoomEnabled = true
-                scrollEnabled = true
-            }
-            updateGesturesSettings(gesturesSettings)
-        }
+//        gestures {
+//            // 启用或禁用特定手势
+//            val gesturesSettings = GesturesSettings().apply {
+//                rotateEnabled = true
+//                pitchEnabled = true
+//                zoomEnabled = true
+//                scrollEnabled = true
+//            }
+//            updateGesturesSettings(gesturesSettings)
+//        }
     }
 }

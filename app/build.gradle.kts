@@ -149,7 +149,7 @@ dependencies {
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     implementation("com.mapbox.maps:android-ndk27:11.17.1")
-    
+    implementation("com.mapbox.extension:maps-compose:11.17.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

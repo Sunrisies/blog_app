@@ -33,6 +33,10 @@
     <!-- GStreamer 需要的权限 -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
+    <!-- Mapbox 地图权限 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
     <application
         android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
